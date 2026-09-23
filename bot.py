@@ -34,7 +34,7 @@ from aiogram.utils.markdown import bold
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  🔑  TOKENNI SHU YERGA KIRITING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-BOT_TOKEN = "8951573358:AAHfGIqWRvHmvrIocE2iNzpCvtBZrKgFW1Y"
+BOT_TOKEN = 
 # Misol: BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
