@@ -1,7 +1,22 @@
-# bot.py — Aiogram 3.x | Anagram O'yini (EN + RU)
-import asyncio
-import random
-import logging
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  AUTO-INSTALL + ANAGRAM BOT — Aiogram 3.x | EN + RU        ║
+# ║  Tokenni kiriting → Run → Tayyor!                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+import subprocess, sys
+
+def install(pkg):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "-q"])
+
+try:
+    import aiogram
+except ImportError:
+    print("📦 aiogram o'rnatilmoqda...")
+    install("aiogram==3.13.1")
+    print("✅ aiogram o'rnatildi!")
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import asyncio, random, logging
 from typing import Dict, Any
 
 from aiogram import Bot, Dispatcher, F
@@ -9,341 +24,437 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.utils.markdown import bold, italic
+from aiogram.utils.markdown import bold
 
-from config import BOT_TOKEN
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  🔑  TOKENNI SHU YERGA KIRITING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BOT_TOKEN = "8951573358:AAHfGIqWRvHmvrIocE2iNzpCvtBZrKgFW1Y"
+# Misol: BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger(__name__)
 
-# ── Word banks ───────────────────────────────────────────────────────────────
-EN_WORDS = [
-    "python", "keyboard", "monitor", "library", "network",
-    "algorithm", "elephant", "journey", "science", "bracket",
-    "dragon", "culture", "history", "message", "balance",
-    "cabinet", "diamond", "fortune", "gallery", "harvest",
-    "imagine", "lantern", "mystery", "network", "palette",
-    "quarter", "silence", "thunder", "vintage", "warrior",
-    "bicycle", "captain", "dolphin", "empire", "fiction",
-    "giraffe", "horizon", "kitchen", "leopard", "mustard",
-]
+# ── So'z bazalari ────────────────────────────────────────────────────────────
+EN_WORDS: Dict[str, str] = {
+    "python":   "🐍 A popular programming language",
+    "keyboard": "⌨️ You type with it",
+    "monitor":  "🖥️ You see things on it",
+    "library":  "📚 A place full of books",
+    "network":  "🌐 Connects computers together",
+    "elephant": "🐘 Largest land animal",
+    "journey":  "🗺️ A long trip or travel",
+    "science":  "🔬 Study of the natural world",
+    "dragon":   "🐉 A mythical fire-breathing creature",
+    "culture":  "🎭 Art, music, traditions of a society",
+    "history":  "📜 Study of past events",
+    "balance":  "⚖️ Equal weight on both sides",
+    "cabinet":  "🗄️ Furniture for storing things",
+    "diamond":  "💎 The hardest natural material",
+    "fortune":  "🍀 Luck or great wealth",
+    "gallery":  "🖼️ A place to display art",
+    "harvest":  "🌾 Gathering crops from fields",
+    "imagine":  "💭 To picture in your mind",
+    "lantern":  "🏮 A portable light source",
+    "mystery":  "🔍 Something unexplained or secret",
+    "quarter":  "🪙 One fourth of something",
+    "silence":  "🤫 Complete absence of sound",
+    "thunder":  "⛈️ Loud sound during a storm",
+    "vintage":  "🍷 Something old and high quality",
+    "warrior":  "⚔️ A brave fighter or soldier",
+    "bicycle":  "🚲 Two-wheeled human-powered vehicle",
+    "captain":  "⚓ Leader of a ship or team",
+    "dolphin":  "🐬 An intelligent sea mammal",
+    "fiction":  "📖 Stories that are not real",
+    "giraffe":  "🦒 Tallest living terrestrial animal",
+    "horizon":  "🌅 Where sky meets the earth",
+    "kitchen":  "🍳 Room where food is cooked",
+    "leopard":  "🐆 A spotted wild cat",
+    "compass":  "🧭 Navigation tool showing directions",
+    "feather":  "🪶 Light covering of a bird",
+    "glacier":  "🏔️ A slow-moving mass of ice",
+    "hamster":  "🐹 A small furry pet rodent",
+    "lantern":  "🏮 A portable light source",
+    "blanket":  "🛏️ Keeps you warm at night",
+    "captain":  "⚓ Leader of a ship or team",
+}
 
-RU_WORDS = [
-    "привет", "солнце", "книга", "город", "земля",
-    "вода", "огонь", "небо", "море", "лето",
-    "зима", "весна", "осень", "школа", "наука",
-    "музыка", "танец", "цветок", "звезда", "камень",
-    "дерево", "птица", "рыба", "кошка", "собака",
-    "белый", "чёрный", "красный", "синий", "зелёный",
-    "большой", "малый", "новый", "старый", "добрый",
-    "умный", "быстрый", "тихий", "громкий", "сильный",
-]
+RU_WORDS: Dict[str, str] = {
+    "привет":  "👋 Слово приветствия",
+    "солнце":  "☀️ Звезда в центре нашей системы",
+    "книга":   "📚 В ней есть страницы и текст",
+    "город":   "🏙️ Большое населённое место",
+    "земля":   "🌍 Наша планета",
+    "огонь":   "🔥 Горячее и светящееся явление",
+    "небо":    "☁️ Голубое пространство над нами",
+    "море":    "🌊 Большое солёное водное пространство",
+    "школа":   "🏫 Место, где учатся дети",
+    "наука":   "🔬 Изучение мира вокруг нас",
+    "музыка":  "🎵 Звуки, создающие мелодию",
+    "танец":   "💃 Движения тела под музыку",
+    "цветок":  "🌸 Красивое растение с лепестками",
+    "звезда":  "⭐ Светящийся объект в небе ночью",
+    "камень":  "🪨 Твёрдый природный материал",
+    "дерево":  "🌳 Высокое растение с ветвями",
+    "птица":   "🐦 Существо с крыльями и перьями",
+    "кошка":   "🐱 Популярное домашнее животное",
+    "собака":  "🐶 Верный друг человека",
+    "красный": "🔴 Цвет огня и крови",
+    "синий":   "🔵 Цвет неба и моря",
+    "зелёный": "🟢 Цвет травы и листьев",
+    "новый":   "✨ Только что сделанный",
+    "добрый":  "😊 Добросердечный и отзывчивый",
+    "умный":   "🧠 Обладающий большим умом",
+    "быстрый": "⚡ Движущийся с большой скоростью",
+    "тихий":   "🤫 Издающий мало шума",
+    "сильный": "💪 Обладающий большой силой",
+    "весна":   "🌷 Время года после зимы",
+    "осень":   "🍂 Время года перед зимой",
+    "зима":    "❄️ Самое холодное время года",
+    "лето":    "🌞 Самое тёплое время года",
+    "рыба":    "🐟 Животное, живущее в воде",
+    "волк":    "🐺 Дикое животное из леса",
+    "орёл":    "🦅 Крупная хищная птица",
+    "гора":    "⛰️ Высокая возвышенность",
+    "река":    "🏞️ Поток пресной воды",
+    "ветер":   "🌬️ Движение воздуха",
+    "месяц":   "🌙 Ночное светило",
+    "сердце":  "❤️ Главный орган тела",
+}
 
-ANSWER_TIME = 10  # seconds
+ANSWER_TIME = 10
+TIMER_BARS  = ["🟥🟥🟥🟥🟥", "🟧🟧🟧🟧⬜", "🟨🟨🟨⬜⬜", "🟩🟩⬜⬜⬜", "🟩⬜⬜⬜⬜"]
 
-# ── Scores storage (in-memory) ────────────────────────────────────────────────
 scores: Dict[int, Dict[str, Any]] = {}
 
-def get_score(user_id: int) -> Dict[str, Any]:
-    if user_id not in scores:
-        scores[user_id] = {"en": 0, "ru": 0, "total": 0}
-    return scores[user_id]
+def get_score(uid: int) -> Dict[str, Any]:
+    if uid not in scores:
+        scores[uid] = {"en": 0, "ru": 0, "total": 0, "streak": 0, "best": 0}
+    return scores[uid]
 
-# ── FSM States ───────────────────────────────────────────────────────────────
-class GameState(StatesGroup):
-    choosing_lang = State()
-    playing_en    = State()
-    playing_ru    = State()
+class GS(StatesGroup):
+    choose = State()
+    en     = State()
+    ru     = State()
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
 def scramble(word: str) -> str:
     letters = list(word)
-    while True:
+    for _ in range(100):
         random.shuffle(letters)
-        scrambled = "".join(letters)
-        if scrambled != word:
-            return scrambled
+        if "".join(letters) != word:
+            return "".join(letters)
+    return "".join(letters)
 
-def lang_keyboard() -> InlineKeyboardMarkup:
+def hint(word: str) -> str:
+    return word[0].upper() + " " + " ".join("_" for _ in word[1:])
+
+def tbar(left: int) -> str:
+    idx = max(0, min(4, 4 - (left - 1) // 2))
+    return TIMER_BARS[idx]
+
+def main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en"),
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
+            InlineKeyboardButton(text="🇬🇧 English", callback_data="L_en"),
+            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="L_ru"),
         ],
-        [InlineKeyboardButton(text="📊 Natijalarim", callback_data="my_score")],
+        [
+            InlineKeyboardButton(text="📊 Natija", callback_data="score"),
+            InlineKeyboardButton(text="❓ Yordam",  callback_data="help"),
+        ],
     ])
 
-def stop_keyboard() -> ReplyKeyboardMarkup:
+def game_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="🛑 To'xtatish")]],
+        keyboard=[
+            [KeyboardButton(text="💡 Maslahat"), KeyboardButton(text="⏭ O'tkazish")],
+            [KeyboardButton(text="🛑 To'xtatish")],
+        ],
         resize_keyboard=True,
-        one_time_keyboard=False,
     )
 
-# ── Bot & Dispatcher ──────────────────────────────────────────────────────────
 bot = Bot(token=BOT_TOKEN)
 dp  = Dispatcher(storage=MemoryStorage())
 
 # ── /start ────────────────────────────────────────────────────────────────────
 @dp.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext):
+async def start(msg: Message, state: FSMContext):
     await state.clear()
-    name = message.from_user.first_name or "Do'st"
-    text = (
-        f"👋 Salom, {bold(name)}! Xush kelibsiz!\n\n"
-        f"🎮 {bold('Anagram O\'yini')} ga xush kelibsiz!\n\n"
-        "📌 Qoidalar:\n"
-        "• Aralashtirilgan harflardan to'g'ri so'z toping\n"
-        f"• Har bir savol uchun ⏱ {bold(str(ANSWER_TIME))} soniya vaqt bor\n"
-        "• To'g'ri javob = +1 ball\n\n"
-        "🌍 Qaysi tilda o'ynamoqchisiz?"
+    name = msg.from_user.first_name or "Do'st"
+    await msg.answer(
+        f"👋 *Salom, {name}! Xush kelibsiz!* 🎉\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🎮 *ANAGRAM O'YINI*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 *Qoidalar:*\n"
+        "• Aralashtirilgan harflardan so'z toping\n"
+        f"• Har savol uchun ⏱ *{ANSWER_TIME} soniya*\n"
+        "• To'g'ri javob = *+1 ball* 🏆\n"
+        "• Ketma-ket to'g'ri = *🔥 combo!*\n"
+        "• 💡 Maslahat = birinchi harf ko'rinadi\n\n"
+        "🌍 *Qaysi tilda o'ynamoqchisiz?*",
+        reply_markup=main_kb(), parse_mode="Markdown"
     )
-    await message.answer(text, reply_markup=lang_keyboard(), parse_mode="Markdown")
-    await state.set_state(GameState.choosing_lang)
+    await state.set_state(GS.choose)
 
-
-# ── /menu ─────────────────────────────────────────────────────────────────────
 @dp.message(Command("menu"))
-async def cmd_menu(message: Message, state: FSMContext):
+async def menu(msg: Message, state: FSMContext):
     await state.clear()
-    await message.answer(
-        "🏠 Asosiy menyu — til tanlang:",
-        reply_markup=lang_keyboard()
+    await msg.answer("🏠 Til tanlang:", reply_markup=main_kb(), parse_mode="Markdown")
+    await state.set_state(GS.choose)
+
+@dp.message(Command("score"))
+async def score_cmd(msg: Message):
+    s = get_score(msg.from_user.id)
+    await msg.answer(
+        f"📊 *Natijangiz*\n━━━━━━━━━━━━━━━\n"
+        f"🇬🇧 English:  *{s['en']}* ball\n"
+        f"🇷🇺 Русский:  *{s['ru']}* ball\n"
+        f"🏆 Jami:      *{s['total']}* ball\n"
+        f"🔥 Eng yaxshi: *{s['best']}* ketma-ket",
+        parse_mode="Markdown"
     )
-    await state.set_state(GameState.choosing_lang)
 
-
-# ── Score callback ─────────────────────────────────────────────────────────────
-@dp.callback_query(F.data == "my_score")
-async def cb_my_score(call: CallbackQuery):
-    uid  = call.from_user.id
-    sc   = get_score(uid)
-    text = (
-        f"📊 {bold('Sizning natijangiz:')}\n\n"
-        f"🇬🇧 English: {sc['en']} ball\n"
-        f"🇷🇺 Русский: {sc['ru']} ball\n"
-        f"🏆 Jami: {sc['total']} ball"
+@dp.message(Command("help"))
+async def help_cmd(msg: Message):
+    await msg.answer(
+        "❓ *Yordam*\n━━━━━━━━━━━━━━━\n"
+        "/start — Boshlash\n/menu — Til tanlash\n"
+        "/score — Natija\n/help — Yordam\n\n"
+        "💡 Maslahat — birinchi harf\n"
+        "⏭ O'tkazish — keyingi so'z\n"
+        "🛑 To'xtatish — o'yinni tugatish",
+        parse_mode="Markdown"
     )
-    await call.message.answer(text, parse_mode="Markdown")
-    await call.answer()
 
+@dp.callback_query(F.data == "score")
+async def cb_score(call: CallbackQuery):
+    s = get_score(call.from_user.id)
+    await call.message.answer(
+        f"📊 *Natijangiz*\n━━━━━━━━━━━━━━━\n"
+        f"🇬🇧 English:  *{s['en']}* ball\n"
+        f"🇷🇺 Русский:  *{s['ru']}* ball\n"
+        f"🏆 Jami:      *{s['total']}* ball\n"
+        f"🔥 Eng yaxshi: *{s['best']}* ketma-ket",
+        parse_mode="Markdown"
+    ); await call.answer()
 
-# ── Language selection ────────────────────────────────────────────────────────
-@dp.callback_query(F.data.in_({"lang_en", "lang_ru"}))
+@dp.callback_query(F.data == "help")
+async def cb_help(call: CallbackQuery):
+    await call.message.answer(
+        "❓ *Yordam*\n━━━━━━━━━━━━━━━\n"
+        "/start — Boshlash\n/menu — Til tanlash\n"
+        "/score — Natija\n\n"
+        "💡 Maslahat — birinchi harf\n"
+        "⏭ O'tkazish — keyingi so'z\n"
+        "🛑 To'xtatish — o'yinni tugatish",
+        parse_mode="Markdown"
+    ); await call.answer()
+
+@dp.callback_query(F.data.in_({"L_en", "L_ru"}))
 async def cb_lang(call: CallbackQuery, state: FSMContext):
     lang = call.data.split("_")[1]
     await call.answer()
-
     if lang == "en":
-        await state.set_state(GameState.playing_en)
+        await state.set_state(GS.en)
         await call.message.answer(
-            "🇬🇧 *English mode* tanlandi!\nO'yin boshlanmoqda...",
-            parse_mode="Markdown",
-            reply_markup=stop_keyboard()
-        )
-        await send_question(call.message, state, "en")
-    else:
-        await state.set_state(GameState.playing_ru)
-        await call.message.answer(
-            "🇷🇺 *Русский режим* выбран!\nИгра начинается...",
-            parse_mode="Markdown",
-            reply_markup=stop_keyboard()
-        )
-        await send_question(call.message, state, "ru")
-
-
-# ── Send question ─────────────────────────────────────────────────────────────
-async def send_question(message: Message, state: FSMContext, lang: str):
-    word_list = EN_WORDS if lang == "en" else RU_WORDS
-    word      = random.choice(word_list)
-    scrambled = scramble(word)
-
-    await state.update_data(current_word=word, lang=lang, answered=False)
-
-    if lang == "en":
-        text = (
-            f"🔤 {bold('Anagram:')} `{scrambled.upper()}`\n\n"
-            f"Bu harflardan inglizcha so'z toping!\n"
-            f"⏱ {ANSWER_TIME} soniya vaqtingiz bor..."
+            "🇬🇧 *English mode!* O'yin boshlanmoqda... 🚀",
+            reply_markup=game_kb(), parse_mode="Markdown"
         )
     else:
-        text = (
-            f"🔤 {bold('Анаграмма:')} `{scrambled.upper()}`\n\n"
-            f"Найдите русское слово из этих букв!\n"
-            f"⏱ У вас {ANSWER_TIME} секунд..."
+        await state.set_state(GS.ru)
+        await call.message.answer(
+            "🇷🇺 *Русский режим!* Игра начинается... 🚀",
+            reply_markup=game_kb(), parse_mode="Markdown"
         )
+    await asyncio.sleep(0.6)
+    await send_q(call.message, state, lang)
 
-    sent = await message.answer(text, parse_mode="Markdown")
+# ── Savol yuborish ────────────────────────────────────────────────────────────
+async def send_q(msg: Message, state: FSMContext, lang: str):
+    wd    = EN_WORDS if lang == "en" else RU_WORDS
+    word  = random.choice(list(wd.keys()))
+    scr   = scramble(word)
+    data  = await state.get_data()
+    qn    = data.get("qn", 0) + 1
 
-    # Schedule timeout
-    asyncio.create_task(check_timeout(message.chat.id, state, word, lang, ANSWER_TIME))
+    await state.update_data(word=word, lang=lang, answered=False, hint_used=False, qn=qn)
 
+    flag = "🇬🇧 English" if lang == "en" else "🇷🇺 Русский"
+    lbl  = "Anagram" if lang == "en" else "Анаграмма"
+    sub  = "So'zni yozing 👇" if lang == "en" else "Напишите слово 👇"
 
-async def check_timeout(chat_id: int, state: FSMContext, word: str, lang: str, delay: int):
-    await asyncio.sleep(delay)
-    data = await state.get_data()
+    text = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔢 #{qn}  |  {flag}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🔀 *{lbl}:*\n"
+        f"┌──────────────────┐\n"
+        f"│  `{scr.upper():^16}` │\n"
+        f"└──────────────────┘\n\n"
+        f"⏱ *{ANSWER_TIME} soniya*  {tbar(ANSWER_TIME)}\n\n"
+        f"{sub}"
+    )
+    sent = await msg.answer(text, parse_mode="Markdown")
+    await state.update_data(mid=sent.message_id)
+    asyncio.create_task(timer_task(msg.chat.id, state, word, lang, sent.message_id, scr, qn))
 
-    # If already answered or game stopped, skip
-    if data.get("answered", True) or data.get("current_word") != word:
+# ── Timer ─────────────────────────────────────────────────────────────────────
+async def timer_task(chat_id: int, state: FSMContext, word: str, lang: str,
+                     mid: int, scr: str, qn: int):
+    flag = "🇬🇧 English" if lang == "en" else "🇷🇺 Русский"
+    lbl  = "Anagram" if lang == "en" else "Анаграмма"
+    sub  = "So'zni yozing 👇" if lang == "en" else "Напишите слово 👇"
+
+    for left in range(ANSWER_TIME - 1, 0, -1):
+        await asyncio.sleep(1)
+        d = await state.get_data()
+        if d.get("answered") or d.get("word") != word:
+            return
+        if left not in (7, 5, 3, 1):
+            continue
+        extra = ""
+        if left <= 5 and not d.get("hint_used"):
+            extra = f"\n\n💡 *Maslahat:* `{hint(word)}`"
+        try:
+            await bot.edit_message_text(
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🔢 #{qn}  |  {flag}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"🔀 *{lbl}:*\n"
+                f"┌──────────────────┐\n"
+                f"│  `{scr.upper():^16}` │\n"
+                f"└──────────────────┘\n\n"
+                f"⏱ *{left} soniya*  {tbar(left)}\n\n"
+                f"{sub}{extra}",
+                chat_id=chat_id, message_id=mid, parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+
+    await asyncio.sleep(1)
+    d = await state.get_data()
+    if d.get("answered") or d.get("word") != word:
         return
-
     await state.update_data(answered=True)
 
+    wd = EN_WORDS if lang == "en" else RU_WORDS
     if lang == "en":
-        msg = f"⏰ Vaqt tugadi! To'g'ri javob: {bold(word.upper())}"
+        tout = f"⏰ *Vaqt tugadi!*\n\n✅ Javob: *{word.upper()}*\n📖 {wd[word]}\n\n➡️ Keyingi so'z..."
     else:
-        msg = f"⏰ Время вышло! Правильный ответ: {bold(word.upper())}"
+        tout = f"⏰ *Время вышло!*\n\n✅ Ответ: *{word.upper()}*\n📖 {wd[word]}\n\n➡️ Следующее слово..."
 
     try:
-        await bot.send_message(chat_id, msg + "\n\n➡️ Keyingi so'z...", parse_mode="Markdown")
-        await asyncio.sleep(1.5)
-
-        # Continue game
-        current_state = await state.get_state()
-        if current_state in (GameState.playing_en.state, GameState.playing_ru.state):
-            class FakeMsg:
-                def __init__(self, cid): self.chat = type("C", (), {"id": cid})()
+        await bot.send_message(chat_id, tout, parse_mode="Markdown")
+        await asyncio.sleep(2)
+        cur = await state.get_state()
+        if cur in (GS.en.state, GS.ru.state):
+            class _M:
+                def __init__(self, c): self.chat = type("C", (), {"id": c})()
                 async def answer(self, *a, **kw): return await bot.send_message(chat_id, *a, **kw)
-            await send_question(FakeMsg(chat_id), state, lang)
-    except Exception:
-        pass
+            await send_q(_M(chat_id), state, lang)
+    except Exception as e:
+        log.error(e)
 
+# ── Javob handler ─────────────────────────────────────────────────────────────
+async def process(msg: Message, state: FSMContext, lang: str):
+    txt = msg.text.strip() if msg.text else ""
 
-# ── Answer handler — English ──────────────────────────────────────────────────
-@dp.message(GameState.playing_en)
-async def handle_answer_en(message: Message, state: FSMContext):
-    if message.text == "🛑 To'xtatish":
-        await stop_game(message, state)
+    if txt == "🛑 To'xtatish":
+        uid = msg.from_user.id
+        s   = get_score(uid)
+        await state.clear()
+        medal = "🥇" if s["total"] >= 20 else "🥈" if s["total"] >= 10 else "🥉" if s["total"] >= 5 else "🎮"
+        await msg.answer(
+            f"🛑 *O'yin tugadi!*\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{medal} *Yakuniy natija*\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🇬🇧 English:  *{s['en']}* ball\n"
+            f"🇷🇺 Русский:  *{s['ru']}* ball\n"
+            f"🏆 Jami:      *{s['total']}* ball\n"
+            f"🔥 Eng yaxshi: *{s['best']}* ketma-ket\n\n"
+            "Qayta o'ynash: /start 🎮",
+            reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown"
+        )
         return
 
-    data     = await state.get_data()
-    word     = data.get("current_word", "")
-    answered = data.get("answered", False)
-
-    if answered:
+    if txt == "💡 Maslahat":
+        d = await state.get_data()
+        w = d.get("word", "")
+        if d.get("hint_used"):
+            await msg.answer("💡 Maslahat allaqachon berilgan!")
+        else:
+            await state.update_data(hint_used=True)
+            await msg.answer(f"💡 *Maslahat:* `{hint(w)}`\n_(birinchi harf: *{w[0].upper()}*)_",
+                             parse_mode="Markdown")
         return
 
-    guess = message.text.strip().lower()
-
-    if guess == word:
+    if txt == "⏭ O'tkazish":
+        d  = await state.get_data()
+        w  = d.get("word", "")
+        wd = EN_WORDS if lang == "en" else RU_WORDS
         await state.update_data(answered=True)
-        uid = message.from_user.id
-        sc  = get_score(uid)
-        sc["en"]    += 1
-        sc["total"] += 1
-
-        await message.answer(
-            f"✅ {bold('To\'g\'ri!')} +1 ball 🎉\n"
-            f"So'z: {bold(word.upper())}\n"
-            f"🇬🇧 Ballingiz: {sc['en']}",
-            parse_mode="Markdown"
-        )
-        await asyncio.sleep(1.5)
-        await send_question(message, state, "en")
-    else:
-        await message.answer(
-            f"❌ Noto'g'ri! Qaytadan urinib ko'ring... ⏱",
-            parse_mode="Markdown"
-        )
-
-
-# ── Answer handler — Russian ──────────────────────────────────────────────────
-@dp.message(GameState.playing_ru)
-async def handle_answer_ru(message: Message, state: FSMContext):
-    if message.text == "🛑 To'xtatish":
-        await stop_game(message, state)
+        await msg.answer(f"⏭ O'tkazildi!\n✅ Javob: *{w.upper()}*\n📖 {wd.get(w,'')}",
+                         parse_mode="Markdown")
+        await asyncio.sleep(1.2)
+        await send_q(msg, state, lang)
         return
 
-    data     = await state.get_data()
-    word     = data.get("current_word", "")
-    answered = data.get("answered", False)
-
+    d        = await state.get_data()
+    word     = d.get("word", "")
+    answered = d.get("answered", False)
     if answered:
-        return
+        await msg.answer("⏳ Keyingi savol kelmoqda..."); return
 
-    guess = message.text.strip().lower()
-
-    if guess == word:
+    if txt.lower() == word:
         await state.update_data(answered=True)
-        uid = message.from_user.id
-        sc  = get_score(uid)
-        sc["ru"]    += 1
-        sc["total"] += 1
+        uid = msg.from_user.id
+        s   = get_score(uid)
+        s[lang]   += 1
+        s["total"] += 1
+        s["streak"] += 1
+        if s["streak"] > s["best"]:
+            s["best"] = s["streak"]
 
-        await message.answer(
-            f"✅ {bold('Правильно!')} +1 очко 🎉\n"
-            f"Слово: {bold(word.upper())}\n"
-            f"🇷🇺 Очков: {sc['ru']}",
+        wd     = EN_WORDS if lang == "en" else RU_WORDS
+        flag   = "🇬🇧" if lang == "en" else "🇷🇺"
+        combo  = f"\n🔥 *{s['streak']} ketma-ket! COMBO!*" if s["streak"] >= 3 else ""
+
+        await msg.answer(
+            f"✅ *To'g'ri!* +1 ball 🎉\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"💬 So'z: *{word.upper()}*\n"
+            f"📖 {wd[word]}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"{flag} Ball: *{s[lang]}*  |  🏆 Jami: *{s['total']}*{combo}",
             parse_mode="Markdown"
         )
-        await asyncio.sleep(1.5)
-        await send_question(message, state, "ru")
+        await asyncio.sleep(1.2)
+        await send_q(msg, state, lang)
     else:
-        await message.answer(
-            f"❌ Неверно! Попробуйте ещё раз... ⏱",
-            parse_mode="Markdown"
-        )
+        s = get_score(msg.from_user.id)
+        s["streak"] = 0
+        if lang == "en":
+            await msg.answer("❌ *Noto'g'ri!* Qayta urinib ko'ring ⏱", parse_mode="Markdown")
+        else:
+            await msg.answer("❌ *Неверно!* Попробуйте ещё раз ⏱", parse_mode="Markdown")
 
+@dp.message(GS.en)
+async def h_en(msg: Message, state: FSMContext): await process(msg, state, "en")
 
-# ── Stop game ─────────────────────────────────────────────────────────────────
-async def stop_game(message: Message, state: FSMContext):
-    uid = message.from_user.id
-    sc  = get_score(uid)
-    await state.clear()
-
-    text = (
-        f"🛑 {bold('O\'yin tugadi!')}\n\n"
-        f"📊 Sizning natijangiz:\n"
-        f"🇬🇧 English: {sc['en']} ball\n"
-        f"🇷🇺 Русский: {sc['ru']} ball\n"
-        f"🏆 Jami: {sc['total']} ball\n\n"
-        "Qayta o'ynash uchun /start bosing!"
-    )
-    await message.answer(text, reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown")
-
-
-# ── /score ────────────────────────────────────────────────────────────────────
-@dp.message(Command("score"))
-async def cmd_score(message: Message):
-    uid = message.from_user.id
-    sc  = get_score(uid)
-    text = (
-        f"📊 {bold('Sizning natijangiz:')}\n\n"
-        f"🇬🇧 English: {sc['en']} ball\n"
-        f"🇷🇺 Русский: {sc['ru']} ball\n"
-        f"🏆 Jami: {sc['total']} ball"
-    )
-    await message.answer(text, parse_mode="Markdown")
-
-
-# ── /help ─────────────────────────────────────────────────────────────────────
-@dp.message(Command("help"))
-async def cmd_help(message: Message):
-    text = (
-        f"📖 {bold('Yordam')}\n\n"
-        "🎮 Buyruqlar:\n"
-        "/start — Botni ishga tushirish\n"
-        "/menu  — Til tanlash menyusi\n"
-        "/score — Natijalaringizni ko'rish\n"
-        "/help  — Yordam\n\n"
-        "🎯 O'yin qoidalari:\n"
-        "• Aralashtirilgan harflardan to'g'ri so'z yozing\n"
-        f"• Har savol uchun {ANSWER_TIME} soniya\n"
-        "• To'g'ri javob = +1 ball\n"
-        "• 🛑 To'xtatish tugmasi bilan o'yinni to'xtatishingiz mumkin"
-    )
-    await message.answer(text, parse_mode="Markdown")
-
+@dp.message(GS.ru)
+async def h_ru(msg: Message, state: FSMContext): await process(msg, state, "ru")
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 async def main():
-    log.info("Bot ishga tushmoqda...")
+    log.info("🤖 Bot ishga tushmoqda...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 if __name__ == "__main__":
